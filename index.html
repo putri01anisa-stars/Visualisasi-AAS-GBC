@@ -37,51 +37,71 @@ button.on{background:var(--ac);color:#10202a;border-color:var(--ac);font-weight:
 input[type=range]{width:100%;accent-color:var(--ac)}
 #cal{width:100%;height:auto;border:1px solid var(--ln);border-radius:8px;touch-action:none;cursor:crosshair;margin-bottom:6px}
 #exw{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mu)}#exw input{width:100px}
+select{font:inherit;font-size:12.5px;color:var(--tx);background:var(--bg2);border:1px solid var(--ln);border-radius:6px;padding:3px;max-width:48%}
+button:disabled{opacity:.75;cursor:default}
+.tb{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}.tb td,.tb th{border-bottom:1px solid var(--ln);padding:3px 4px;text-align:right;font-weight:400}.tb td:first-child,.tb th:first-child{text-align:left}
+.warn{border-left:3px solid var(--ac);padding:4px 8px;margin:6px 0;font-size:13px;background:#0002}
 @media (max-width:760px){
 #panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;height:44%}
 #top{max-width:80%}h1{font-size:17px}
 #tools{bottom:calc(44% + 14px);max-width:calc(100% - 28px)}
 }
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+
+#app{background:radial-gradient(ellipse at 45% 30%,#ffffff,#d3dde1 75%)}
+#bar{position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;gap:8px;padding:0 10px;background:var(--pn);border-bottom:1px solid var(--ln);z-index:6}
+#bar button{width:44px;height:38px;font-size:18px;padding:0}#bar b{flex:1;color:var(--ok);font:700 16px Georgia,serif}
+#cap{position:absolute;top:64px;left:10px;width:calc(100% - 20px);max-width:440px;background:var(--pn);border-left:4px solid var(--ok);border-radius:10px;padding:9px 12px;z-index:4;display:none;backdrop-filter:blur(6px)}
+#cap b{display:block;color:var(--ok);font-size:16px}#cap p{margin:4px 0 8px;font-size:13.5px}
+#dock{position:absolute;left:0;right:0;bottom:0;z-index:6;background:var(--pn);border-top:1px solid var(--ln);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+#steps{display:flex;gap:6px;align-items:center;overflow-x:auto;white-space:nowrap;margin-bottom:6px}#steps span{color:var(--mu)}
+#dock #tools{position:static;max-width:none;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;align-items:center}
+#tools button,#steps button{flex:none}#bSim{background:#1f8a4c;border-color:#1f8a4c;color:#fff;font-weight:700}
+#app #panel{top:64px;bottom:120px;right:10px;z-index:7}#panel.hide{display:none}
+#drawer{position:absolute;top:54px;bottom:110px;left:0;width:min(320px,80%);overflow:auto;background:var(--pn);border-right:1px solid var(--ln);padding:10px;z-index:8;transform:translateX(-105%);transition:transform .25s;display:flex;flex-direction:column;gap:6px;backdrop-filter:blur(6px)}
+#drawer.open{transform:none}#drawer h4{margin:8px 0 2px;color:var(--mu);font-size:12px;letter-spacing:1.5px}#drawer button{text-align:left;padding:9px 10px}
+@media (max-width:760px){#app #panel{left:8px;right:8px;width:auto;top:auto;bottom:120px;height:52%}}
+@media (prefers-reduced-motion:reduce){#drawer{transition:none}}
 </style>
 </head>
 <body>
 <div id="app">
-<div id="top"><h1>Analisis Gangguan Ca pada AAS</h1><p>Instrumen GBC SavantAA (Flame AAS, λ 422,7 nm). Putar, zoom, lalu sentuh bagian alat.</p></div>
-<div id="tools">
+<div id="bar"><button id="bMenu" aria-label="Menu">☰</button><b>AAS · GBC SavantAA Σ</b><button id="bInfo" aria-label="Info">ⓘ</button><button id="bFull" aria-label="Layar penuh">⛶</button></div><div id="cap"><b id="capT"></b><p id="capD"></p><button id="capM">Detail</button> <button id="capX">Tutup</button></div><div id="drawer"></div>
+<div id="dock"><div id="steps"></div><div id="tools"><button id="bSim">▶ Mulai Simulasi</button><button id="bLihat">Lihat Komponen</button><button id="bPrin">Prinsip Kerja</button><button id="bKurva">Kurva</button><button id="bKuis">Kuis</button>
 <button id="bBeam" class="on">Jalur cahaya</button>
-<button id="bCase" class="on">Casing tembus pandang</button>
+<button id="bCase" class="on">Tembus Pandang</button>
 <button id="bExp">Bongkar komponen</button><label id="exw">Jarak <input id="ex" type="range" min="0" max="1" step="0.01" value="0" aria-label="Jarak bongkar"></label>
 <button id="bSpin">Putar otomatis</button>
 <button id="bIn">Zoom +</button><button id="bOut">Zoom −</button><button id="bReset">Reset</button>
-</div>
-<div id="panel" aria-live="polite"></div>
+</div></div>
+<div id="panel" class="hide" aria-live="polite"></div>
 <div id="tip"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
+const FX=.9; // posisi x nyala/kompartemen (SavantAA: kanan-tengah)
 // ---------- DATA ----------
 const INFO={
 lamp:{n:"Lampu Katoda Berongga (HCL)",f:[-3,1.3,0,3.2],
 d:"Sumber cahaya. Katodanya berisi logam Ca, sehingga memancarkan garis spektrum khas Ca pada 422,7 nm.",
 c:"Hanya atom Ca yang menyerap garis ini, jadi analisis selektif. Gangguan di sini bukan spektral, melainkan kimia: atom Ca bebas di nyala berkurang."},
-flame:{n:"Nyala Udara-Asetilena (~2300 °C)",f:[-1.2,1.3,0,3],
+flame:{n:"Nyala Udara-Asetilena (~2300 °C)",f:[FX,1.3,0,3],
 d:"Mengubah larutan yang dikabutkan menjadi atom netral: desolvasi, penguapan, disosiasi, lalu atomisasi (Ca²⁺ → Ca⁰).",
 c:"Inti masalah gangguan. Suhu ini tidak cukup memecah Ca₂P₂O₇ (kalsium pirofosfat) dan sebagian CaSO₄, sehingga populasi Ca⁰ turun dan serapan mengecil."},
-burner:{n:"Kepala Pembakar (Burner)",f:[-1.2,0.9,0,2.8],
+burner:{n:"Kepala Pembakar (Burner)",f:[FX,0.9,0,2.8],
 d:"Celah panjang (slot) yang menghasilkan nyala lebar sehingga lintasan cahaya melewati banyak atom.",
 c:"Campuran bahan bakar dan oksidator bertemu di sini. Rasio gas menentukan suhu nyala, dan suhu menentukan seberapa besar gangguan refraktori."},
-nebulizer:{n:"Nebulizer & Ruang Semprot",f:[-1.2,0.5,0.4,2.8],
+nebulizer:{n:"Nebulizer & Ruang Semprot",f:[FX,0.5,0.4,2.8],
 d:"Menyedot sampel, mengubahnya jadi kabut halus, dan memilih tetes kecil untuk masuk ke nyala. Sisanya mengalir ke drain.",
 c:"Larutan uji berisi Ca, SO₄²⁻, PO₄³⁻, serta Sr²⁺/La³⁺/EDTA dikabutkan bersama. Laju aspirasi yang tidak stabil ikut menurunkan r kurva kalibrasi (0,9923)."},
-mono:{n:"Monokromator",f:[0.6,1.3,0,3],
+mono:{n:"Monokromator",f:[1.9,1.3,0,2.6],
 d:"Memilih panjang gelombang 422,7 nm dan membuang cahaya lain, termasuk emisi nyala.",
 c:"Memastikan sinyal berasal dari Ca. Dengan slit yang sesuai, gangguan spektral dapat diabaikan, sehingga penurunan serapan pada praktikum berasal dari kimia."},
-det:{n:"Detektor (Tabung Pengganda Foton)",f:[1.9,1.3,0,2.8],
+det:{n:"Detektor (Tabung Pengganda Foton)",f:[2.45,1.3,0,2.4],
 d:"Mengubah intensitas cahaya yang lolos dari nyala menjadi sinyal listrik. Absorbansi A = −log(I/I₀).",
 c:"Membaca penurunan cahaya akibat atom Ca⁰. Ca tanpa pengganggu: A = 0,027; dengan fosfat: A ≈ 0,002."},
-pc:{n:"Komputer & Perangkat Lunak",f:[-5,1.1,0.8,3],
+pc:{n:"Komputer & Perangkat Lunak",f:[-5,.9,.8,3],
 d:"Mengatur parameter, menampilkan absorbansi, dan menghitung konsentrasi dari kurva kalibrasi.",
 c:"Kurva standar: y = 0,0128x + 0,0054. Konsentrasi uji = (A − 0,0054) / 0,0128. Nilai negatif pada larutan 6–9 menandakan Ca hampir tidak terdeteksi."},
 acet:{n:"Tabung Asetilena (bahan bakar)",f:[3.7,1.1,-0.8,4],
@@ -90,13 +110,13 @@ c:"Asetilena dengan udara menghasilkan nyala sekitar 2300 °C. Nyala N₂O-aseti
 air:{n:"Suplai Udara (oksidator)",f:[4.4,1.0,-0.2,4],
 d:"Menyediakan udara bertekanan sebagai oksidator dan sebagai gas penyedot sampel di nebulizer.",
 c:"Laju udara memengaruhi kecepatan aspirasi dan suhu nyala, dua hal yang menjaga kestabilan serapan."},
-sample:{n:"Wadah Sampel / Larutan Uji",f:[-1.7,0.4,1.7,2.8],
+sample:{n:"Wadah Sampel / Larutan Uji",f:[(FX-.5),0.4,1.7,2.8],
 d:"Tempat larutan standar dan larutan uji. Selang kapiler menyalurkannya ke nebulizer.",
 c:"Berisi 10 larutan uji: Ca 2 mg/L dengan SO₄²⁻ atau PO₄³⁻ 100 mg/L, ditambah releasing agent (Sr²⁺, La³⁺) atau masking agent (EDTA)."},
-drain:{n:"Wadah Pembuangan (Drain)",f:[-2.6,0.3,1.7,2.8],
+drain:{n:"Wadah Pembuangan (Drain)",f:[FX-1.5,0.3,1.7,2.8],
 d:"Menampung kelebihan larutan dari ruang semprot. Selang drain harus berbentuk U agar gas tidak bocor.",
 c:"Sisa larutan yang tidak diatomisasi terbuang di sini. Pembilasan kurang sempurna menimbulkan efek memori antar larutan."},
-duct:{n:"Ducting / Cerobong Buangan",f:[-1.2,2.8,0,4],
+duct:{n:"Ducting / Cerobong Buangan",f:[FX,2.8,0,4],
 d:"Menyedot gas panas dan uap hasil pembakaran keluar ruangan.",
 c:"Menjaga keselamatan operator dan kestabilan nyala dari aliran udara sekitar."}
 };
@@ -123,7 +143,7 @@ C.position.set(5.5,3.6,8);
 const O=new THREE.OrbitControls(C,R.domElement);O.enableDamping=true;O.minDistance=1.5;O.maxDistance=20;O.target.set(-.5,1.2,0);O.maxPolarAngle=Math.PI*.52;
 S.add(new THREE.HemisphereLight(0xffffff,0x334455,.9));
 const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(4,8,6);S.add(dl);
-const fl=new THREE.PointLight(0xff9a3c,1.2,6);fl.position.set(-1.2,1.4,0);S.add(fl);
+const fl=new THREE.PointLight(0xff9a3c,1.2,6);fl.position.set(FX,1.4,0);S.add(fl);
 const M=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:.2,roughness:.55},o));
 const mk=(g,m,x=0,y=0,z=0)=>{const q=new THREE.Mesh(g,m);q.position.set(x,y,z);return q};
 const pick=[];
@@ -132,47 +152,66 @@ const cyl=(r,h,m,x,y,z,ax)=>{const q=mk(new THREE.CylinderGeometry(r,r,h,28),m,x
 const tube=(pts,c,r=.035)=>mk(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))),24,r,6),M(c));
 
 // meja
-S.add(mk(new THREE.BoxGeometry(14,.2,6),M(0x20343f,{roughness:.9}),-.3,-.1,0));
+const env=new THREE.Group();S.add(env);
+S.add(mk(new THREE.BoxGeometry(16,.2,6),M(0xeef2f4,{roughness:.5}),-.3,-.1,0));
+env.add(mk(new THREE.BoxGeometry(15.8,2,5.9),M(0x1f242c,{roughness:.5}),-.3,-1.2,0));
+for(let i=0;i<5;i++)env.add(mk(new THREE.BoxGeometry(3,1.9,.04),M(0x2c333d,{roughness:.35,metalness:.3}),-6.3+i*3.15,-1.2,2.97));
+const tc=document.createElement('canvas');tc.width=tc.height=128;const t2=tc.getContext('2d');t2.fillStyle='#f3f6f7';t2.fillRect(0,0,128,128);t2.strokeStyle='#c9d3d8';t2.lineWidth=4;t2.strokeRect(0,0,128,128);
+const tt=new THREE.CanvasTexture(tc);tt.wrapS=tt.wrapT=THREE.RepeatWrapping;tt.repeat.set(14,6);
+env.add(mk(new THREE.PlaneGeometry(26,11),new THREE.MeshStandardMaterial({map:tt,roughness:.8}),-.3,3.5,-3.1));
+const flr=mk(new THREE.PlaneGeometry(26,14),M(0xe2e8eb,{roughness:.9}),-.3,-2.2,1);flr.rotation.x=-Math.PI/2;env.add(flr);
 // casing
 const caseMat=M(0xf2f5f6,{transparent:true,opacity:.16,depthWrite:false,roughness:.3});
 const casing=mk(new THREE.BoxGeometry(6.4,1.9,2.4),caseMat,-.5,1.15,0);S.add(casing);
 const edges=new THREE.LineSegments(new THREE.EdgesGeometry(casing.geometry),new THREE.LineBasicMaterial({color:0x9fc2cf}));casing.add(edges);
 S.add(mk(new THREE.BoxGeometry(6.4,.2,2.5),M(0x3a3f45),-.5,.1,0));
-const cv=document.createElement('canvas');cv.width=512;cv.height=96;const cx=cv.getContext('2d');
-cx.fillStyle='#ffb347';cx.font='bold 54px Georgia';cx.fillText('GBC',10,62);cx.fillStyle='#e8f1f2';cx.font='36px sans-serif';cx.fillText('SavantAA',170,60);
-const lg=mk(new THREE.PlaneGeometry(2.4,.45),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true}),-2.4,.55,1.22);S.add(lg);
+const cv=document.createElement('canvas');cv.width=512;cv.height=88;const cx=cv.getContext('2d');
+cx.fillStyle='#f2f5f6';cx.font='italic 600 52px Georgia';cx.fillText('SavantAA Σ',6,62);
+const lg=mk(new THREE.PlaneGeometry(2.1,.36),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false}),-2.3,1.2,1.225);S.add(lg);
+const cv3=document.createElement('canvas');cv3.width=256;cv3.height=88;const c3=cv3.getContext('2d');
+c3.fillStyle='#f5a623';c3.beginPath();c3.arc(40,44,28,0,6.3);c3.fill();c3.fillStyle='#3a3d42';c3.beginPath();c3.arc(40,44,12,0,6.3);c3.fill();
+c3.fillStyle='#ffffff';c3.font='bold 56px Arial';c3.fillText('GBC',84,64);
+const lg2=mk(new THREE.PlaneGeometry(.9,.31),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv3),transparent:true,depthWrite:false}),2.1,1.2,1.225);S.add(lg2);
+// eksterior SavantAA Σ: kubah, pita abu-abu, jendela kompartemen, indikator
+const dome=mk(new THREE.CylinderGeometry(1.2,1.2,6.4,40),caseMat,-.5,2.1,0);dome.rotation.z=Math.PI/2;dome.scale.set(.4,1,1);S.add(dome);
+const bandMat=new THREE.MeshStandardMaterial({color:0x3a3d42,roughness:.6,transparent:true,depthWrite:false}),band=new THREE.Group();
+[[-.5,1.205,6.44,.34,.02],[-3.71,0,.02,.34,2.44],[2.71,0,.02,.34,2.44]].forEach(([x,z,w,h,d])=>band.add(mk(new THREE.BoxGeometry(w,h,d),bandMat,x,1.2,z)));S.add(band);
+const win=mk(new THREE.BoxGeometry(1.4,1.55,.05),new THREE.MeshStandardMaterial({color:0x07090b,transparent:true,opacity:.5,depthWrite:false}),FX,1.1,1.225);S.add(win);
+[[2.0,0xf2c744],[2.2,0x22262a],[2.4,0x22262a]].forEach(([x,c])=>S.add(cyl(.07,.05,M(c),x,.5,1.22,'z')));
 
 // lampu katoda
 grp('lamp',cyl(.42,.5,M(0x55636b,{metalness:.7}),-3,1.3,0,'x'),cyl(.2,.7,M(0xffb347,{emissive:0x7a3d00}),-2.55,1.3,0,'x'),cyl(.3,.15,M(0x222c33),-3.35,1.3,0,'x'));
 // kompartemen sampel (kotak gelap transparan)
-S.add(mk(new THREE.BoxGeometry(1.5,1.4,1.6),M(0x14212a,{transparent:true,opacity:.35,depthWrite:false}),-1.2,1.0,0));
+S.add(mk(new THREE.BoxGeometry(1.5,1.4,1.6),M(0x14212a,{transparent:true,opacity:.35,depthWrite:false}),FX,1.0,0));
 // burner
-grp('burner',mk(new THREE.BoxGeometry(1,.14,.14),M(0xb7c0c6,{metalness:.8}),-1.2,1.1,0),mk(new THREE.BoxGeometry(.9,.4,.3),M(0x8a949b,{metalness:.7}),-1.2,.88,0));
+grp('burner',mk(new THREE.BoxGeometry(1,.14,.14),M(0xb7c0c6,{metalness:.8}),FX,1.1,0),mk(new THREE.BoxGeometry(.9,.4,.3),M(0x8a949b,{metalness:.7}),FX,.88,0));
 // nebulizer + ruang semprot
-grp('nebulizer',cyl(.22,.5,M(0x6d7b83,{metalness:.6}),-1.2,.5,0),cyl(.08,.5,M(0x3b7fa0),-1.2,.4,.4,'z'));
+grp('nebulizer',cyl(.22,.5,M(0x6d7b83,{metalness:.6}),FX,.5,0),cyl(.08,.5,M(0x3b7fa0),FX,.4,.4,'z'));
 // nyala
-const flameM=mk(new THREE.ConeGeometry(.2,.55,20,1,true),new THREE.MeshBasicMaterial({color:0xff8a2a,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false}),-1.2,1.43,0);
-const flameC=mk(new THREE.ConeGeometry(.1,.4,16,1,true),new THREE.MeshBasicMaterial({color:0x5aa8ff,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false}),-1.2,1.33,0);
-const flameHit=mk(new THREE.CylinderGeometry(.35,.35,.8,8),new THREE.MeshBasicMaterial({visible:false}),-1.2,1.4,0);
+const flameM=mk(new THREE.ConeGeometry(.2,.55,20,1,true),new THREE.MeshBasicMaterial({color:0xff8a2a,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false}),FX,1.43,0);
+const flameC=mk(new THREE.ConeGeometry(.1,.4,16,1,true),new THREE.MeshBasicMaterial({color:0x5aa8ff,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false}),FX,1.33,0);
+const flameHit=mk(new THREE.CylinderGeometry(.35,.35,.8,8),new THREE.MeshBasicMaterial({visible:false}),FX,1.4,0);
 grp('flame',flameM,flameC,flameHit);
 // monokromator
-const prism=mk(new THREE.CylinderGeometry(.28,.28,.6,3),M(0x7fd0ff,{transparent:true,opacity:.7,metalness:.1,roughness:.1}),.6,1.3,0);prism.rotation.x=Math.PI/2;
-grp('mono',mk(new THREE.BoxGeometry(1.1,.9,.9),M(0x2d5d78,{transparent:true,opacity:.55}),.6,1.3,0),prism,mk(new THREE.BoxGeometry(.05,.4,.4),M(0xdde8ee,{metalness:1,roughness:.1}),.2,1.3,0));
+const prism=mk(new THREE.CylinderGeometry(.2,.2,.45,3),M(0x7fd0ff,{transparent:true,opacity:.7,metalness:.1,roughness:.1}),1.9,1.3,0);prism.rotation.x=Math.PI/2;
+grp('mono',mk(new THREE.BoxGeometry(.6,.8,.8),M(0x2d5d78,{transparent:true,opacity:.55}),1.9,1.3,0),prism,mk(new THREE.BoxGeometry(.05,.4,.4),M(0xdde8ee,{metalness:1,roughness:.1}),1.65,1.3,0));
 // detektor
-grp('det',cyl(.3,.7,M(0xd9a441,{metalness:.7}),1.9,1.3,0,'x'),mk(new THREE.BoxGeometry(.5,.5,.5),M(0x3a3f45),2.4,1.3,0));
+grp('det',cyl(.22,.4,M(0xd9a441,{metalness:.7}),2.45,1.3,0,'x'),mk(new THREE.BoxGeometry(.18,.35,.35),M(0x3a3f45),2.62,1.3,0));
 // ducting
-grp('duct',mk(new THREE.CylinderGeometry(.3,.85,.6,24,1,true),M(0xaeb7bc,{metalness:.8,side:THREE.DoubleSide}),-1.2,2.5,0),cyl(.2,1.5,M(0x9aa4aa,{metalness:.8}),-1.2,3.5,0));
+grp('duct',mk(new THREE.BoxGeometry(1.15,1,1.1),M(0xf4f6f7,{roughness:.4}),FX,2.6,0),mk(new THREE.BoxGeometry(.9,.04,.85),M(0x15181b),FX,3.11,0),cyl(.2,4,M(0x9aa4aa,{metalness:.8}),FX,4.7,0),cyl(.2,3,M(0x9aa4aa,{metalness:.8}),FX,6.7,-1.5,'z'));
 // tabung gas
 const gasS=(key,col,x,z,h)=>grp(key,cyl(.33,h,M(col,{metalness:.35}),x,h/2,z),mk(new THREE.SphereGeometry(.33,20,10,0,Math.PI*2,0,Math.PI/2),M(col,{metalness:.35}),x,h,z),cyl(.08,.2,M(0xc8a24a,{metalness:.8}),x,h+.3,z));
 gasS('acet',0xd13b2f,3.7,-.9,2.1);gasS('air',0x2f78c9,4.5,-.4,1.9);
-S.add(tube([[3.7,2.4,-.9],[3.2,.8,-1.4],[-.6,.3,-1],[-1.2,.7,-.05]],0xd13b2f));
-S.add(tube([[4.5,2.1,-.4],[4,.4,-1.2],[-.4,.25,-.8],[-1.2,.55,.1]],0x2f78c9));
+S.add(tube([[3.7,2.4,-.9],[3.2,.8,-1.4],[1.2,.3,-1],[FX,.7,-.05]],0xd13b2f));
+S.add(tube([[4.5,2.1,-.4],[4,.4,FX],[1.4,.25,-.8],[FX,.55,.1]],0x2f78c9));
 // botol sampel & drain
-grp('sample',cyl(.26,.7,M(0xbfe3f2,{transparent:true,opacity:.5}),-1.7,.35,1.7),cyl(.22,.4,M(0xffd27a,{transparent:true,opacity:.8}),-1.7,.22,1.7),tube([[-1.7,.7,1.7],[-1.7,.7,1],[-1.2,.45,.4]],0x3b7fa0,.02));
-grp('drain',cyl(.3,.6,M(0x8da0a8,{transparent:true,opacity:.6}),-2.7,.3,1.7),tube([[-1.2,.25,0],[-1.5,.1,1],[-2.7,.62,1.7]],0x555e64,.03));
+grp('sample',cyl(.26,.7,M(0xbfe3f2,{transparent:true,opacity:.5}),(FX-.5),.35,1.7),cyl(.22,.4,M(0xffd27a,{transparent:true,opacity:.8}),(FX-.5),.22,1.7),tube([[(FX-.5),.7,1.7],[(FX-.5),.7,1],[FX,.45,.4]],0x3b7fa0,.02));
+grp('drain',cyl(.3,.6,M(0x8da0a8,{transparent:true,opacity:.6}),(FX-1.5),.3,1.7),tube([[FX,.25,0],[FX-1.3,.1,1],[(FX-1.5),.62,1.7]],0x555e64,.03));
+{const lc=document.createElement('canvas');lc.width=160;lc.height=80;const l2=lc.getContext('2d');l2.fillStyle='#fff';l2.fillRect(0,0,160,80);l2.strokeStyle='#c0392b';l2.lineWidth=4;l2.strokeRect(2,2,156,76);l2.fillStyle='#c0392b';l2.font='bold 24px Arial';l2.textAlign='center';l2.fillText('LIMBAH',80,36);l2.fillText('CAIR',80,64);
+pick.find(g=>g.userData.key=='drain').add(mk(new THREE.PlaneGeometry(.4,.2),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(lc)}),FX-1.5,.32,2.01));}
 // PC
 const pcG=grp('pc',mk(new THREE.BoxGeometry(1.3,.85,.08),M(0x10161a),0,0,0),mk(new THREE.PlaneGeometry(1.15,.7),new THREE.MeshBasicMaterial({color:0x2a8fb0}),0,0,.05),cyl(.05,.4,M(0x333),0,-.6,0),mk(new THREE.BoxGeometry(.6,.05,.4),M(0x333),0,-.82,0));
-pcG.position.set(-5.2,1.2,.8);pcG.rotation.y=.55;
+pcG.position.set(-5.2,.88,.8);pcG.rotation.y=.55;S.add(mk(new THREE.BoxGeometry(.55,1.25,.95),M(0x2a2f36),-6.6,.63,.3),mk(new THREE.BoxGeometry(1,.04,.35),M(0xc9d0d4),-5.1,.03,1.55));
 // kurva di layar
 const gc=document.createElement('canvas');gc.width=256;gc.height=160;const g2=gc.getContext('2d');g2.fillStyle='#0d3342';g2.fillRect(0,0,256,160);g2.strokeStyle='#ffb347';g2.lineWidth=3;g2.beginPath();g2.moveTo(20,130);g2.lineTo(230,30);g2.stroke();g2.fillStyle='#e8f1f2';g2.font='14px sans-serif';g2.fillText('A = 0,0128 C + 0,0054',20,20);
 pcG.children[1].material=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(gc)});
@@ -183,11 +222,11 @@ pick.forEach(g=>{g.userData.b=g.position.clone();g.userData.off=new THREE.Vector
 let ex=0,exT=0,caseOn=true;
 
 // berkas cahaya
-const beamA=cyl(.05,1.8,new THREE.MeshBasicMaterial({color:0xffc15a,transparent:true,opacity:.8}),-2.1,1.3,0,'x');
-const beamB=cyl(.05,3.5,new THREE.MeshBasicMaterial({color:0xffc15a,transparent:true,opacity:.8}),.55,1.3,0,'x');
+const beamA=cyl(.05,FX+3,new THREE.MeshBasicMaterial({color:0xffc15a,transparent:true,opacity:.8}),(FX-3)/2,1.3,0,'x');
+const beamB=cyl(.05,2.6-FX,new THREE.MeshBasicMaterial({color:0xffc15a,transparent:true,opacity:.8}),.55,1.3,0,'x');
 beamA.scale.set(1,1,1);const beam=new THREE.Group();beam.add(beamA,beamB);S.add(beam);
-beamA.position.x=-2.1;beamA.scale.y=1;beamA.geometry.translate(0,0,0);
-beamA.scale.y=1;beamB.position.x=.55;
+beamA.position.x=(FX-3)/2;beamA.scale.y=1;beamA.geometry.translate(0,0,0);
+beamA.scale.y=1;beamB.position.x=(FX+2.6)/2;
 const dots=[];for(let i=0;i<14;i++){const d=mk(new THREE.SphereGeometry(.05,8,8),new THREE.MeshBasicMaterial({color:0xfff2c8}));d.userData.p=i/14;beam.add(d);dots.push(d)}
 // partikel nyala & atom Ca
 function pts(n,col,sz){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));const p=new THREE.Points(g,new THREE.PointsMaterial({color:col,size:sz,transparent:true,opacity:.9,depthWrite:false}));S.add(p);return p}
@@ -198,13 +237,14 @@ const cv2=[...Array(NC)].map(()=>({a:Math.random()*6.28,r:Math.random()*.2,y:Mat
 // ---------- UI ----------
 const P=document.getElementById('panel'),tip=document.getElementById('tip');
 let sel=null,goal=null;
-function setHL(key){pick.forEach(g=>g.traverse(m=>{if(m.material&&m.material.emissive&&!m.userData.keepE){m.material.emissive.setHex(g.userData.key===key?0x2a5a6a:(m.userData.e0||0))}}))}
+function setHL(key){pick.forEach(g=>g.traverse(m=>{if(m.material&&m.material.emissive&&!m.userData.keepE){m.material.emissive.setHex([].concat(key).includes(g.userData.key)?0x2a5a6a:(m.userData.e0||0))}}))}
 pick.forEach(g=>g.traverse(m=>{if(m.material&&m.material.emissive)m.userData.e0=m.material.emissive.getHex()}));
+let simMode=false,simFlame=false,simLamp=false,simA=0,simT=0,wT=0;
 const STD=[[0,.008],[1,.014],[2,.032],[3,.044],[4,.057]];
 const REG=(()=>{const n=STD.length,mx=STD.reduce((q,p)=>q+p[0],0)/n,my=STD.reduce((q,p)=>q+p[1],0)/n;let sxy=0,sxx=0,syy=0;STD.forEach(([x,y])=>{sxy+=(x-mx)*(y-my);sxx+=(x-mx)**2;syy+=(y-my)**2});const b=sxy/sxx;return{b,a:my-b*mx,r:sxy/Math.sqrt(sxx*syy)}})();
 let tab='k',cx0=2;
 const $=id=>document.getElementById(id);
-const tabs=()=>`<div class="row tabs"><button data-t="k" class="${tab=='k'?'on':''}">Komponen</button><button data-t="c" class="${tab=='c'?'on':''}">Kurva kalibrasi</button></div>`;
+const tabs=()=>`<div class="row tabs"><button data-t="k" class="${tab=='k'?'on':''}">Komponen</button><button data-t="c" class="${tab=='c'?'on':''}">Kurva kalibrasi</button><button data-t="s" class="${tab=='s'?'on':''}">Simulator</button><button data-t="w" class="${tab=='w'?'on':''}">Cara kerja</button><button data-t="q" class="${tab=='q'?'on':''}">Kuis</button><button data-close aria-label="Tutup">✕</button></div>`;
 const chips=()=>`<div class="row">${SC.map((x,i)=>`<button data-s="${i}" class="${i==cur?'on':''}">${x.l}</button>`).join('')}</div>`;
 function sim(){const s=SC[cur],rel=s.a/BASE,pct=(s.a-BASE)/BASE*100,w=Math.max(0,Math.min(100,s.a/.038*100));
  return `<h3>Simulasi gangguan (data praktikum)</h3>${chips()}
@@ -255,13 +295,130 @@ function initCurve(){const c=$('cal'),sl=$('cs');
  const fromEv=e=>{const r=c.getBoundingClientRect(),X=(e.clientX-r.left)/r.width*c.width;setX(-.6+(X-76)/(c.width-76-24)*5)};
  let d=false;c.onpointerdown=e=>{d=true;c.setPointerCapture(e.pointerId);fromEv(e)};c.onpointermove=e=>{if(d)fromEv(e)};c.onpointerup=()=>d=false;
  drawCal()}
-function render(){P.innerHTML=tabs()+(tab=='c'?curveHTML():sel?partHTML(sel):homeHTML());
+// ---------- SIMULATOR ----------
+const ACT=[['duct','Nyalakan ducting'],['lamp','Nyalakan lampu Ca, λ 422,7 nm'],['air','Buka udara (oksidator)'],['acet','Buka asetilena (bahan bakar)'],['ign','Nyalakan api'],['blank','Aspirasi blanko (autozero)'],['acetoff','Tutup asetilena dulu'],['airoff','Tutup udara'],['lampoff','Matikan lampu'],['ductoff','Matikan ducting']];
+const OK=['Ducting menyala.','Lampu dipanaskan, λ 422,7 nm.','Udara terbuka.','Asetilena terbuka.','Api menyala (udara-asetilena, ±2300 °C).','Blanko terbaca. Alat siap mengukur.','Asetilena ditutup lebih dulu: benar.','Udara ditutup.','Lampu mati.','Selesai. Alat aman.'];
+const SM={nx:0,err:0,mode:'bebas',log:'Mulai dari langkah 1.',std:[],smp:[],blk:null,done:{},sol:{ca:2,an:'none',ac:0,ag:'none',gc:0}};
+const RG0={a:.0054,b:.0128},TB={SO4:{none:.021,Sr:.038,La:.038,EDTA:.022},PO4:{none:.002,Sr:.030,La:.030,EDTA:.025}},RQ={SO4:1,PO4:50},MS={SO4:TB.SO4,PO4:{none:.002,Sr:.001,La:.005,EDTA:.005}};
+const gauss=()=>(Math.random()+Math.random()+Math.random()-1.5)*2;
+const say=m=>SM.log=m,sr=()=>{const t=P.scrollTop;render();P.scrollTop=t};
+const sync=()=>{simFlame=!!SM.done.ign&&!SM.done.acetoff;simLamp=!!SM.done.lamp&&!SM.done.lampoff};
+function trueA(s,role){if(role=='std')return RG0.a+RG0.b*s.ca;let A2=.027;
+ if(s.an!='none'&&s.ac>0){A2=.027+(TB[s.an].none-.027)*Math.min(s.ac/100,1);
+  if(s.ag!='none'&&s.gc>0){const phi=Math.min(s.gc/s.ac/RQ[s.an],1);A2+=(TB[s.an][s.ag]-A2)*phi}
+  if(s.ac==100&&(s.ag=='none'||s.gc==100))A2=MS[s.an][s.ag]}
+ return Math.max(.001,RG0.a+(A2-RG0.a)*s.ca/2)}
+function rd(t,n=3){const x=[...Array(n)].map(()=>Math.max(0,t+gauss()*(.0008+.02*t))),m=x.reduce((p,q)=>p+q)/n;return{A:m,sd:Math.sqrt(x.reduce((p,q)=>p+(q-m)**2,0)/(n-1))}}
+function cal(){const d=SM.std,n=d.length;if(n<2)return null;const mx=d.reduce((q,p)=>q+p.c,0)/n,my=d.reduce((q,p)=>q+p.A,0)/n;let sxy=0,sxx=0,syy=0;d.forEach(p=>{sxy+=(p.c-mx)*(p.A-my);sxx+=(p.c-mx)**2;syy+=(p.A-my)**2});if(!sxx)return null;const b=sxy/sxx;return{a:my-b*mx,b,r:syy?sxy/Math.sqrt(sxx*syy):1,n}}
+function act(i){const nx=SM.nx;
+ if(i!=nx){SM.err++;say(i==3&&nx<3?'BAHAYA: asetilena tanpa udara berisiko flashback. Penalti −2.':'Urutan salah. Seharusnya: '+ACT[nx][1]+'. Penalti −2.');sr();return}
+ SM.done[ACT[i][0]]=1;SM.nx++;if(i==5)SM.blk=rd(.008);say(OK[i]);sync();sr()}
+function meas(role){const s={...SM.sol};if(s.an=='none')s.ac=0;if(s.ag=='none')s.gc=0;
+ if(!(SM.done.blank&&!SM.done.acetoff)){say('Nyalakan api dan aspirasi blanko dulu.');sr();return}
+ if(role=='std'&&(s.an!='none'||s.ag!='none')){say('Standar harus tanpa pengganggu dan agen.');sr();return}
+ const v=rd(trueA(s,role));
+ if(role=='std')SM.std.push({c:s.ca,A:v.A,sd:v.sd});else SM.smp.push({...s,A:v.A,sd:v.sd});
+ say('Terukur A = '+v.A.toFixed(4)+' (3 replikasi).');sr()}
+const rec=(p,c)=>c&&p.ca?(p.A-c.a)/c.b/p.ca*100:0;
+function tasks(){const c=cal(),sm=SM.smp;return[
+['Kurva ≥5 titik berbeda, r ≥ 0,995',20,c&&new Set(SM.std.map(p=>p.c)).size>=5&&c.r>=.995],
+['Sulfat 100 mg/L dipulihkan: recovery 90–115%',20,sm.some(p=>p.an=='SO4'&&p.ac>=100&&p.ag!='none'&&rec(p,c)>=90&&rec(p,c)<=115)],
+['Fosfat 100 mg/L dipulihkan: recovery ≥ 90%',30,sm.some(p=>p.an=='PO4'&&p.ac>=100&&p.ag!='none'&&rec(p,c)>=90)],
+['Menyalakan alat tanpa salah urutan',20,SM.nx>=6&&SM.err==0],
+['Mematikan alat dengan benar',10,SM.nx>=10&&SM.err==0]]}
+const lab=p=>'Ca '+p.ca+(p.an!='none'&&p.ac?' +'+p.an+' '+p.ac:'')+(p.ag!='none'&&p.gc?' +'+p.ag+' '+p.gc:'');
+function simHTML(){const s=SM.sol,rg=cal(),nx=SM.nx,lod=SM.blk&&rg?3*SM.blk.sd/rg.b:null;
+ const sel=(f,o)=>`<select data-f="${f}" aria-label="${f}">${o.map(x=>`<option value="${x[0]}" ${x[0]==s[f]?'selected':''}>${x[1]}</option>`).join('')}</select>`;
+ const T=tasks(),sc=Math.max(0,T.reduce((q,t)=>q+(t[2]?t[1]:0),0)-2*SM.err);
+ let h=`<h2>Simulator AAS Ca</h2><div class="row"><button data-md="bebas" class="${SM.mode=='bebas'?'on':''}">Mode bebas</button><button data-md="latih" class="${SM.mode=='latih'?'on':''}">Mode latihan</button></div><div class="warn">${SM.log}</div>
+ <h3>1. Prosedur alat (urutan harus benar)</h3><div class="row">${ACT.map((x,i)=>`<button data-a="${i}" class="${i<nx?'on':''}" ${i<nx?'disabled':''}>${i<nx?'✓ ':''}${i+1}. ${x[1]}</button>`).join('')}</div>
+ <h3>2. Racik larutan</h3>
+ <div class="kv"><span>Ca ditambahkan (mg/L)</span><b id="caV">${s.ca}</b></div><input type="range" id="caS" data-f="ca" min="0" max="4" step="0.5" value="${s.ca}">
+ <div class="kv"><span>Anion</span>${sel('an',[['none','Tanpa'],['SO4','Sulfat'],['PO4','Fosfat']])}</div>
+ <div class="kv"><span>Konsentrasi anion</span>${sel('ac',[[0,'0'],[100,'100 mg/L'],[500,'500 mg/L']])}</div>
+ <div class="kv"><span>Agen</span>${sel('ag',[['none','Tanpa'],['Sr','Sr²⁺ (releasing)'],['La','La³⁺ (releasing)'],['EDTA','EDTA (masking)']])}</div>
+ <div class="kv"><span>Konsentrasi agen</span>${sel('gc',[[0,'0'],[100,'100 mg/L'],[1000,'1000 mg/L'],[5000,'5000 mg/L'],[10000,'10000 mg/L']])}</div>
+ <div class="kv"><span>Pembacaan langsung</span><b id="live">–</b></div>
+ <div class="row" style="margin-top:6px"><button data-m="std">Ukur sebagai standar</button><button data-m="smp">Ukur sebagai sampel</button></div>
+ <h3>3. Pengolahan data</h3>`;
+ h+=`<table class="tb"><tr><th>Standar</th><th>A</th><th>SD</th></tr>${SM.std.map(p=>`<tr><td>${p.c} mg/L</td><td>${p.A.toFixed(4)}</td><td>${p.sd.toFixed(4)}</td></tr>`).join('')||'<tr><td colspan="3">Belum ada. Ukur ≥5 standar tanpa pengganggu.</td></tr>'}</table>`;
+ h+=rg?`<div class="eq">y = ${rg.b.toFixed(4)}x + ${rg.a.toFixed(4)}<br>r = ${rg.r.toFixed(4)} · r² = ${(rg.r**2).toFixed(4)} · n = ${rg.n}${lod!=null?'<br>LOD = 3·SD blanko / b = '+lod.toFixed(3)+' mg/L':''}</div>`:'';
+ h+=`<table class="tb"><tr><th>Sampel</th><th>A</th><th>Ca terbaca</th><th>Recovery</th></tr>${SM.smp.map(p=>{const q=rg?(p.A-rg.a)/rg.b:null,nd=q!=null&&lod!=null&&q<lod;return `<tr><td>${lab(p)}</td><td>${p.A.toFixed(4)}</td><td>${q==null?'–':nd?'ND':q.toFixed(2)}</td><td>${q==null||!p.ca||nd?'–':(q/p.ca*100).toFixed(0)+'%'}</td></tr>`}).join('')||'<tr><td colspan="4">Belum ada sampel.</td></tr>'}</table>`;
+ h+=`<canvas id="sc" width="640" height="380" style="width:100%;height:auto;border:1px solid var(--ln);border-radius:8px"></canvas><p style="color:var(--mu);font-size:12px">Bulat = standar. Kotak hijau = recovery 90–110%, merah = di luar. ND = di bawah LOD.</p><div class="row"><button data-x>Hapus data</button><button data-csv>Ekspor CSV</button></div>`;
+ if(SM.mode=='latih')h+=`<h3>Mode latihan</h3><div class="kv"><span>Skor (salah urutan −2)</span><b>${sc} / 100</b></div>${T.map(t=>`<p style="margin:2px 0">${t[2]?'✓':'○'} ${t[0]} (${t[1]})</p>`).join('')}`;
+ return h+`<p style="color:var(--mu);font-size:12px;margin-top:10px">Simulator edukasi: nilai berasal dari data praktikum dan model sederhana. Kombinasi yang tidak diukur hanyalah perkiraan.</p>`}
+function drawSim(){const c=$('sc');if(!c)return;const g=c.getContext('2d'),W=640,H=380,L=64,B=46,T=16,R=16,cs=getComputedStyle(document.documentElement),v=n=>cs.getPropertyValue(n).trim(),rg=cal();
+ const xm=5,ym=Math.max(.07,...SM.std.map(p=>p.A),...SM.smp.map(p=>p.A))*1.15,px=x=>L+x/xm*(W-L-R),py=y=>H-B-y/ym*(H-B-T);
+ g.clearRect(0,0,W,H);g.font='18px sans-serif';g.strokeStyle=v('--ln');g.fillStyle=v('--mu');g.lineWidth=1;
+ for(let x=0;x<=5;x++){g.beginPath();g.moveTo(px(x),T);g.lineTo(px(x),H-B);g.stroke();g.textAlign='center';g.fillText(x,px(x),H-B+22)}
+ for(let k=0;k<=4;k++){const y=ym*k/4;g.beginPath();g.moveTo(L,py(y));g.lineTo(W-R,py(y));g.stroke();g.textAlign='right';g.fillText(y.toFixed(3),L-6,py(y)+6)}
+ g.textAlign='center';g.fillText('Konsentrasi Ca (mg/L)',(L+W)/2,H-8);
+ if(rg){g.strokeStyle=v('--ac');g.lineWidth=2.5;g.beginPath();g.moveTo(px(0),py(rg.a));g.lineTo(px(xm),py(rg.a+rg.b*xm));g.stroke()}
+ g.fillStyle=v('--tx');SM.std.forEach(p=>{g.beginPath();g.arc(px(p.c),py(p.A),6,0,6.3);g.fill()});
+ SM.smp.forEach(p=>{const q=rg?(p.A-rg.a)/rg.b:p.ca,rc=rg&&p.ca?q/p.ca*100:100;g.fillStyle=rc>=90&&rc<=110?v('--ok'):v('--bad');g.fillRect(px(Math.min(Math.max(q,0),xm))-6,py(p.A)-6,12,12)})}
+function csv(){let t='tipe,Ca,anion,anion_mgL,agen,agen_mgL,A,SD\n';SM.std.forEach(p=>t+='standar,'+p.c+',,,,,'+p.A.toFixed(4)+','+p.sd.toFixed(4)+'\n');SM.smp.forEach(p=>t+='sampel,'+p.ca+','+p.an+','+p.ac+','+p.ag+','+p.gc+','+p.A.toFixed(4)+','+p.sd.toFixed(4)+'\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='data_aas_ca.csv';a.click()}
+function initSim(){sync();
+ P.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(+b.dataset.a));
+ P.querySelectorAll('[data-f]').forEach(e=>e.onchange=()=>{SM.sol[e.dataset.f]=e.value!==''&&!isNaN(e.value)?+e.value:e.value;sr()});
+ P.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>meas(b.dataset.m));
+ P.querySelectorAll('[data-md]').forEach(b=>b.onclick=()=>{SM.mode=b.dataset.md;sr()});
+ const x=P.querySelector('[data-x]');if(x)x.onclick=()=>{SM.std=[];SM.smp=[];say('Data dihapus.');sr()};
+ const e=P.querySelector('[data-csv]');if(e)e.onclick=csv;
+ const ca=$('caS');if(ca)ca.oninput=()=>{$('caV').textContent=ca.value};
+ drawSim();
+ simT=setInterval(()=>{const on=SM.done.blank&&!SM.done.acetoff,q=SM.sol,t=on?trueA(q,q.an=='none'&&q.ag=='none'?'std':'smp'):0;simA=on?Math.max(0,t+gauss()*(.0008+.02*t)):0;const l=$('live');if(l)l.textContent=on?simA.toFixed(3)+' A':'api belum siap'},300)}
+// ---------- CARA KERJA ----------
+const WK=[
+{k:'lamp',t:'1. Sumber cahaya (HCL)',d:'Lampu katoda berongga berisi Ca. Atom Ca di katoda tereksitasi lalu memancarkan garis spektrum khas Ca, salah satunya 422,7 nm.',e:'Ca* → Ca⁰ + hν (422,7 nm)',g:'Belum ada gangguan kimia di tahap ini. Garis yang dipilih menentukan selektivitas.'},
+{k:'nebulizer',t:'2. Nebulisasi',d:'Larutan disedot oleh aliran udara dan dipecah menjadi aerosol halus. Hanya tetes terkecil yang masuk ke nyala.',e:'Ca²⁺(aq) + X⁻ → aerosol',g:'Viskositas dan kadar garam matriks memengaruhi banyaknya sampel yang sampai ke nyala (gangguan fisika).'},
+{k:'burner',t:'3. Desolvasi',d:'Di bagian bawah nyala, pelarut menguap sehingga tersisa partikel padat garam kalsium.',e:'Ca²⁺(aq) + 2Cl⁻ → CaCl₂(s)',g:'Bila ada SO₄²⁻ atau PO₄³⁻, yang terbentuk justru CaSO₄ atau Ca₂P₂O₇ yang lebih tahan panas.',x:'fl'},
+{k:'flame',t:'4. Penguapan dan atomisasi',d:'Padatan menguap lalu terurai menjadi atom Ca⁰ di zona nyala yang paling panas (±2300 °C).',e:'CaCl₂(s) → CaCl₂(g) → Ca⁰(g)',g:'Inilah tahap gangguan refraktori: Ca₂P₂O₇ tidak terpecah, sehingga Ca⁰ sedikit. Coba bandingkan dua jenis nyala di bawah.',x:'fl'},
+{k:'flame',t:'5. Absorpsi',d:'Atom Ca⁰ menyerap sinar 422,7 nm dari lampu. Makin banyak atom, makin banyak cahaya terserap (hukum Beer).',e:'A = −log(I/I₀) = ε · b · c',g:'Bila atom Ca⁰ sedikit, A kecil walau kadar Ca sebenarnya sama.',x:'beer'},
+{k:'mono',t:'6. Seleksi panjang gelombang',d:'Monokromator meneruskan 422,7 nm dan menahan cahaya lain, termasuk cahaya dari nyala sendiri.',e:'λ = 422,7 nm',g:'Gangguan spektral ditekan, sehingga penurunan serapan di praktikum berasal dari gangguan kimia.'},
+{k:'det',t:'7. Deteksi',d:'Tabung pengganda foton mengubah intensitas cahaya menjadi sinyal listrik. Selisih I₀ dan I dihitung sebagai absorbansi.',e:'I₀ → I → sinyal A',g:'Pada fosfat, I hampir sama dengan I₀ (A ≈ 0,002): hampir tidak ada serapan.'},
+{k:'pc',t:'8. Pengolahan data',d:'Absorbansi dimasukkan ke kurva kalibrasi untuk mendapatkan konsentrasi Ca.',e:'C = (A − 0,0054) / 0,0128',g:'Hasil negatif muncul bila A di bawah intersep, dan dilaporkan sebagai tidak terdeteksi.'}];
+const AT=[['Ca(NO₃)₂ / CaCl₂',[100,100]],['CaSO₄ (sulfat)',[78,97]],['Ca₂P₂O₇ (fosfat)',[7,80]]];
+let ws=0,wp=false,wf=0;
+const rc=v=>v<50?'var(--bad)':v<95?'var(--ac)':'var(--ok)';
+function workHTML(){const w=WK[ws];let x='';
+ if(w.x=='beer')x=`<h3>Coba sendiri: hukum Beer</h3><div class="kv"><span>Konsentrasi Ca</span><b id="bC"></b></div><input type="range" id="bS" min="0" max="4" step="0.1" value="2" aria-label="Konsentrasi Ca"><div class="kv"><span>Absorbansi (kurva praktikum)</span><b id="bA"></b></div><div class="kv"><span>Cahaya yang lolos</span><b id="bT"></b></div><div class="bar"><i id="bB"></i></div><p style="color:var(--mu);font-size:12px">Pada A sekecil ini, hanya beberapa persen cahaya yang terserap, itulah mengapa derau berpengaruh.</p>`;
+ if(w.x=='fl')x=`<h3>Coba sendiri: jenis nyala</h3><div class="row"><button data-fl="0" class="${wf==0?'on':''}">Udara-C₂H₂ (±2300 °C)</button><button data-fl="1" class="${wf==1?'on':''}">N₂O-C₂H₂ (±2900 °C)</button></div>${AT.map(a=>`<div class="kv"><span>${a[0]}</span><b>${a[1][wf]}%</b></div><div class="bar"><i style="width:${a[1][wf]}%;background:${rc(a[1][wf])}"></i></div>`).join('')}<p style="color:var(--mu);font-size:12px">Persen atom Ca bebas relatif terhadap garam tanpa gangguan. Nilai 78% dan 7% pada nyala udara dihitung dari data praktikum (0,021/0,027 dan 0,002/0,027). Nilai N₂O adalah ilustrasi dari literatur umum.</p>`;
+ return `<h2>Cara kerja AAS nyala</h2><p>Ikuti perjalanan satu atom Ca dari lampu sampai menjadi angka.</p>
+ <div class="row">${WK.map((_,i)=>`<button data-ws="${i}" class="${i==ws?'on':''}" aria-label="Tahap ${i+1}">${i+1}</button>`).join('')}<button data-auto class="${wp?'on':''}">${wp?'Jeda':'Putar otomatis'}</button></div>
+ <h3>${w.t}</h3><p>${w.d}</p><div class="eq">${w.e}</div><div class="warn"><b>Kaitan gangguan:</b> ${w.g}</div>${x}
+ <div class="row" style="margin-top:8px"><button data-ws="${(ws+7)%8}">← Sebelumnya</button><button data-ws="${(ws+1)%8}">Berikutnya →</button></div>`}
+function focusW(){const k=WK[ws].k,f=INFO[k].f,t=new THREE.Vector3(f[0],f[1],f[2]).add(new THREE.Vector3(...OFF[k]).multiplyScalar(exT));goal={t,p:t.clone().add(new THREE.Vector3(.6,.5,1).normalize().multiplyScalar(f[3]))};setHL(k)}
+function beer(){const s=$('bS');if(!s)return;const c=+s.value,A=RG0.a+RG0.b*c,T=100*Math.pow(10,-A);$('bC').textContent=c.toFixed(1)+' mg/L';$('bA').textContent=A.toFixed(4);$('bT').textContent=T.toFixed(1)+'%';$('bB').style.width=T+'%'}
+function initWork(){focusW();
+ P.querySelectorAll('[data-ws]').forEach(b=>b.onclick=()=>{ws=+b.dataset.ws;sr()});
+ P.querySelectorAll('[data-fl]').forEach(b=>b.onclick=()=>{wf=+b.dataset.fl;sr()});
+ const a=P.querySelector('[data-auto]');if(a)a.onclick=()=>{wp=!wp;sr()};
+ const bs=$('bS');if(bs){bs.oninput=beer;beer()}
+ if(wp)wT=setInterval(()=>{ws=(ws+1)%WK.length;sr()},7000)}
+// ---------- KUIS ----------
+const QZ=[
+['Pada panjang gelombang berapa Ca diukur di praktikum ini?',['324,8 nm','422,7 nm','589,0 nm','766,5 nm'],1,'422,7 nm adalah garis resonansi Ca yang paling sensitif.'],
+['Senyawa apa yang terbentuk antara Ca dan fosfat di nyala?',['CaCl₂','Ca(NO₃)₂','Ca₂P₂O₇ (refraktori)','CaO murni'],2,'Kalsium pirofosfat sangat tahan panas, tidak terpecah di ±2300 °C.'],
+['Apa fungsi releasing agent seperti La³⁺ atau Sr²⁺?',['Menaikkan suhu nyala','Mengikat anion pengganggu sehingga Ca bebas','Menyerap cahaya lampu','Mengencerkan sampel'],1,'La³⁺ dan Sr²⁺ lebih suka mengikat fosfat atau sulfat, jadi Ca²⁺ dilepas.'],
+['Bagaimana EDTA mengurangi gangguan?',['Membentuk kompleks [Ca-EDTA]²⁻ yang terurai di nyala','Mengendapkan fosfat','Mengubah panjang gelombang','Mematikan nyala'],0,'EDTA melindungi Ca dari anion, lalu kompleksnya terurai di nyala melepas Ca⁰.'],
+['Mana yang benar saat menyalakan nyala?',['Buka asetilena dulu','Buka udara dulu, lalu asetilena','Keduanya bebas','Nyalakan api tanpa ducting'],1,'Udara lebih dulu untuk mencegah flashback. Saat mematikan, tutup asetilena lebih dulu.'],
+['Di praktikum, mana yang menurunkan serapan Ca lebih besar?',['Sulfat (−22%)','Fosfat (−93%)','Sama besar','Keduanya tidak berpengaruh'],1,'Fosfat membentuk senyawa refraktori kuat, sulfat hanya sedang.'],
+['Mengapa konsentrasi bisa terhitung negatif?',['Alat rusak','A lebih kecil dari intersep kurva','Standar terlalu pekat','Lampu terlalu terang'],1,'(A − a)/b negatif bila A < a. Dilaporkan sebagai tidak terdeteksi.'],
+['Cara lain mengatasi gangguan refraktori Ca selain menambah agen?',['Nyala N₂O-asetilena yang lebih panas','Mengganti lampu dengan Na','Memperkecil slit saja','Mendinginkan sampel'],0,'Nyala N₂O-asetilena (±2900 °C) lebih mampu memecah senyawa refraktori.']];
+const QS={i:0,sc:0,a:-1,done:false};
+function quizHTML(){if(QS.done)return `<h2>Hasil kuis</h2><div class="eq">Skor ${QS.sc} / ${QZ.length}</div><p>${QS.sc>=QZ.length*.8?'Sangat baik, konsepnya sudah dikuasai.':QS.sc>=QZ.length*.5?'Cukup baik. Ulangi tab Cara kerja lalu coba lagi.':'Pelajari tab Cara kerja dan Simulator, lalu ulangi.'}</p><button data-qr>Ulangi kuis</button>`;
+ const q=QZ[QS.i],ans=QS.a>=0;
+ return `<h2>Kuis (${QS.i+1}/${QZ.length})</h2><div class="kv"><span>Skor</span><b>${QS.sc}</b></div><p>${q[0]}</p><div style="display:grid;gap:6px">${q[1].map((o,j)=>`<button data-o="${j}" ${ans?'disabled':''} class="${ans&&j==q[2]?'on':''}" style="text-align:left">${o}</button>`).join('')}</div>${ans?`<div class="warn"><b class="${QS.a==q[2]?'pos':'neg'}">${QS.a==q[2]?'Benar.':'Kurang tepat.'}</b> ${q[3]}</div><button data-qn>${QS.i+1<QZ.length?'Soal berikutnya':'Lihat hasil'}</button>`:''}`}
+function initQuiz(){P.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{QS.a=+b.dataset.o;if(QS.a==QZ[QS.i][2])QS.sc++;sr()});
+ const n=P.querySelector('[data-qn]');if(n)n.onclick=()=>{QS.a=-1;if(++QS.i>=QZ.length)QS.done=true;sr()};
+ const r=P.querySelector('[data-qr]');if(r)r.onclick=()=>{Object.assign(QS,{i:0,sc:0,a:-1,done:false});sr()}}
+function render(){clearInterval(simT);clearInterval(wT);if(tab!='w'&&!sel)setHL(null);P.innerHTML=tabs()+(tab=='s'?simHTML():tab=='w'?workHTML():tab=='q'?quizHTML():tab=='c'?curveHTML():sel?partHTML(sel):homeHTML());
  P.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
  P.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>choose(b.dataset.k));
  P.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{cur=+b.dataset.s;render()});
- const bk=P.querySelector('[data-b]');if(bk)bk.onclick=home;if(tab=='c')initCurve()}
-function home(){sel=null;tab='k';setHL(null);goal={t:new THREE.Vector3(-.5,1.2,0),p:new THREE.Vector3(5.5,3.6,8)};render()}
-function choose(k){sel=k;tab='k';setHL(k);const f=INFO[k].f,t=new THREE.Vector3(f[0],f[1],f[2]).add(new THREE.Vector3(...OFF[k]).multiplyScalar(exT));
+ const bk=P.querySelector('[data-b]');if(bk)bk.onclick=home;if(tab=='c')initCurve();simMode=tab=='s'&&!P.classList.contains('hide');if(tab=='s')initSim();if(tab=='w')initWork();if(tab=='q')initQuiz();const cl=P.querySelector('[data-close]');if(cl)cl.onclick=()=>{P.classList.add('hide');simMode=false}}
+function home(){sel=null;tab='k';setHL(null);capShow('1 · Overview','Seluruh instrumen AAS. Putar, zoom, geser, lalu klik komponen untuk melihat detailnya.');goal={t:new THREE.Vector3(-.5,1.2,0),p:new THREE.Vector3(5.5,3.6,8)};render()}
+function choose(k){sel=k;if(!'sq'.includes(tab))tab='k';setHL(k);capShow(INFO[k].n,INFO[k].d,true);const f=INFO[k].f,t=new THREE.Vector3(f[0],f[1],f[2]).add(new THREE.Vector3(...OFF[k]).multiplyScalar(exT));
  goal={t,p:t.clone().add(new THREE.Vector3(.6,.5,1).normalize().multiplyScalar(f[3]))};render()}
 home();
 O.addEventListener('start',()=>goal=null);
@@ -284,6 +441,34 @@ R.domElement.addEventListener('pointermove',e=>{const k=hit(e);R.domElement.styl
 function rs(){const w=app.clientWidth,h=app.clientHeight;R.setSize(w,h);C.aspect=w/h;C.updateProjectionMatrix()}
 addEventListener('resize',rs);rs();
 
+// ---------- APP SHELL ----------
+function capShow(t,d,more){$('capT').textContent=t;$('capD').textContent=d;$('capM').style.display=more?'':'none';$('cap').style.display='block'}
+function openP(t){tab=t;if(t!='k')sel=null;P.classList.remove('hide');render()}
+function fz(k){const f=INFO[k].f,t=new THREE.Vector3(f[0],f[1],f[2]).add(new THREE.Vector3(...OFF[k]).multiplyScalar(exT));goal={t,p:t.clone().add(new THREE.Vector3(.6,.5,1).normalize().multiplyScalar(f[3]))}}
+const SEC=[
+['1 · Overview','','','home'],
+['⚙ Instrumen Saja','Lingkungan laboratorium disembunyikan agar fokus ke instrumen. Tekan lagi untuk menampilkannya.','','env'],
+['2 · Sample Introduction','Sampel disedot ke nebulizer, dikabutkan di ruang semprot, lalu masuk ke burner. Sisa cairan mengalir ke wadah limbah.',['nebulizer','sample','drain'],'nebulizer'],
+['3 · Atomization','Di nyala udara-asetilena, aerosol mengalami desolvasi, penguapan, dan atomisasi menjadi Ca⁰. Di sinilah gangguan refraktori terjadi.',['burner','flame','duct'],'flame'],
+['4 · Optical System','Lampu katoda berongga memancarkan garis Ca 422,7 nm. Berkas melewati nyala lalu masuk ke monokromator yang memilih panjang gelombang.',['lamp','mono'],'lamp'],
+['5 · Detection','Detektor PMT mengubah cahaya yang lolos menjadi sinyal listrik. Komputer menghitung absorbansi dan konsentrasi.',['det','pc'],'det'],
+['6 · Safety System','Ducting menyedot gas buang, tabung gas harus tegak dengan selang tahan api, dan udara dibuka sebelum asetilena untuk mencegah flashback. Fitur interlock bergantung tipe alat, cek buku manual.',['duct','acet','air'],'duct'],
+['7 · Kelistrikan','Alat, komputer, dan ducting memerlukan listrik stabil dengan grounding baik. Ikuti instruksi kerja untuk urutan menghidupkan sebelum menyalakan api.',['pc'],'pc']];
+const dr=$('drawer');
+dr.innerHTML='<h4>JELAJAHI INSTRUMEN</h4>'+SEC.map((x,i)=>`<button data-sc="${i}">${x[0]}</button>`).join('')+'<h4>KOMPONEN</h4>'+Object.keys(INFO).map(k=>`<button data-ck="${k}">${INFO[k].n}</button>`).join('');
+dr.onclick=e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.ck){choose(b.dataset.ck);dr.classList.remove('open');return}
+ const x=SEC[+b.dataset.sc];
+ if(x[3]=='env'){env.visible=!env.visible;capShow(x[0],x[1]);return}
+ if(x[3]=='home'){home();dr.classList.remove('open');return}
+ sel=null;setHL(x[2]);capShow(x[0],x[1]);fz(x[3]);dr.classList.remove('open')};
+$('bMenu').onclick=$('bLihat').onclick=()=>dr.classList.toggle('open');
+$('bInfo').onclick=()=>capShow('Analisis Gangguan Ca pada AAS','Media belajar interaktif GBC SavantAA Σ (Flame AAS, λ 422,7 nm), Kelompok 4. Pakai menu untuk menjelajah, dan tombol di bawah untuk simulasi, prinsip kerja, kurva, dan kuis.');
+$('bFull').onclick=()=>{const d=document;if(d.fullscreenElement)d.exitFullscreen();else if(d.documentElement.requestFullscreen)d.documentElement.requestFullscreen()};
+$('bSim').onclick=()=>openP('s');$('bPrin').onclick=()=>openP('w');$('bKurva').onclick=()=>openP('c');$('bKuis').onclick=()=>openP('q');
+$('capM').onclick=()=>openP('k');$('capX').onclick=()=>$('cap').style.display='none';
+let stepsH='';function stepsUpd(){const d=[SM.nx>=6,SM.std.length>=5,SM.smp.length>0,SM.nx>=10],h=['Persiapan','Standar','Sampel','Matikan'].map((n,i)=>`<button class="${d[i]?'on':''}">${d[i]?'✓ ':''}${n}</button>`).join('<span>→</span>');if(h!==stepsH){stepsH=h;$('steps').innerHTML=h}}
+$('steps').onclick=e=>{if(e.target.closest('button'))openP('s')};setInterval(stepsUpd,600);stepsUpd();
 // animasi
 const calm=matchMedia('(prefers-reduced-motion:reduce)').matches;
 let t0=0;
@@ -292,17 +477,17 @@ let t0=0;
  O.update();
  ex+=(exT-ex)*(calm?1:.08);
  pick.forEach(g=>g.position.copy(g.userData.b).addScaledVector(g.userData.off,ex));
- caseMat.opacity=(caseOn?.16:.92)*(1-.9*ex);lg.visible=ex<.4;edges.visible=ex<.6;
+ caseMat.opacity=(caseOn?.16:.92)*(1-.9*ex);lg.visible=lg2.visible=band.visible=win.visible=dome.visible=ex<.6;edges.visible=ex<.6;bandMat.opacity=Math.min(1,caseMat.opacity*2.2);
  const fo=OFF.flame[1]*ex;
- const s=SC[cur],rel=Math.min(s.a/.038,1);
- beam.visible=showBeam&&ex<.15;
+ const s=SC[cur],rel=simMode?Math.min(simA/.038,1):Math.min(s.a/.038,1),fon=!simMode||simFlame;flameM.visible=flameC.visible=fp.visible=cp.visible=fl.visible=fon;
+ beam.visible=showBeam&&ex<.15&&(!simMode||simLamp);
  beamB.material.opacity=.15+.65*(1-rel*.8);
- dots.forEach(d=>{d.userData.p=(d.userData.p+dt*.35*(calm?0:1))%1;const x=-3.3+d.userData.p*6;d.position.set(x,1.3,0);d.scale.setScalar(x>-1.2?Math.max(.3,1-rel*.6):1)});
+ dots.forEach(d=>{d.userData.p=(d.userData.p+dt*.35*(calm?0:1))%1;const x=-3.3+d.userData.p*6;d.position.set(x,1.3,0);d.scale.setScalar(x>FX?Math.max(.3,1-rel*.6):1)});
  const fa=fp.geometry.attributes.position;
- fv.forEach((p,i)=>{p.y+=dt*p.s*(calm?0:1);if(p.y>1)p.y=0;const h=p.y,r=.17*(1-h)+.02;fa.setXYZ(i,-1.2+(p.x-.5)*2*r,1.15+h*.55+fo,(p.z-.5)*2*r)});fa.needsUpdate=true;
+ fv.forEach((p,i)=>{p.y+=dt*p.s*(calm?0:1);if(p.y>1)p.y=0;const h=p.y,r=.17*(1-h)+.02;fa.setXYZ(i,FX+(p.x-.5)*2*r,1.15+h*.55+fo,(p.z-.5)*2*r)});fa.needsUpdate=true;
  flameM.scale.y=1+Math.sin(t*.012)*.06;fl.position.y=1.4+fo;fl.intensity=.8+rel*.8+Math.sin(t*.02)*.1;
- const ca=cp.geometry.attributes.position,n=Math.round(NC*rel*(s.a<.005?.15:1));
- cv2.forEach((p,i)=>{p.a+=dt*p.s*3;p.y=(p.y+dt*.15*p.s)%1;ca.setXYZ(i,-1.2+Math.cos(p.a)*p.r*(1-p.y*.6),1.15+p.y*.5+fo,Math.sin(p.a)*p.r*(1-p.y*.6))});ca.needsUpdate=true;cp.geometry.setDrawRange(0,n);
+ const ca=cp.geometry.attributes.position,n=Math.round(NC*rel*((simMode?simA:s.a)<.005?.15:1));
+ cv2.forEach((p,i)=>{p.a+=dt*p.s*3;p.y=(p.y+dt*.15*p.s)%1;ca.setXYZ(i,FX+Math.cos(p.a)*p.r*(1-p.y*.6),1.15+p.y*.5+fo,Math.sin(p.a)*p.r*(1-p.y*.6))});ca.needsUpdate=true;cp.geometry.setDrawRange(0,n);
  R.render(S,C)})(0);
 </script>
 </body>
